@@ -15,6 +15,9 @@ from utils.eval import DataLogger, accuracy
 from utils.img import flip, shuffleLR
 from evaluation import prediction
 
+from models.layers.DUC import DUC
+from models.layers.SE_Resnet import SEResnet
+
 from tensorboardX import SummaryWriter
 import os
 
