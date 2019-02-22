@@ -12,7 +12,7 @@ parser.add_argument('--expID', default='default', type=str,
                     help='Experiment ID')
 parser.add_argument('--dataset', default='coco', type=str,
                     help='Dataset choice: mpii | coco')
-parser.add_argument('--nThreads', default=30, type=int,
+parser.add_argument('--nThreads', default=0, type=int,
                     help='Number of data loading threads')
 parser.add_argument('--snapshot', default=1, type=int,
                     help='How often to take a snapshot of the model (0 = never)')
@@ -24,9 +24,10 @@ parser.add_argument('--addDPG', default=False, dest='addDPG',
 "----------------------------- Model options -----------------------------"
 parser.add_argument('--loadModel', default=None, type=str,
                     help='Provide full path to a previously trained model')
-parser.add_argument('--nClasses', default=17, type=int,
+parser.add_argument('--nClasses', default=23, type=int,
                     help='Number of output channel')
-
+parser.add_argument('--oClasses', default=23, type=int,
+                    help='Original Classes in the pretrained model')
 "----------------------------- Hyperparameter options -----------------------------"
 parser.add_argument('--LR', default=1e-3, type=float,
                     help='Learning rate')

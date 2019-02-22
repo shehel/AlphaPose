@@ -33,12 +33,12 @@ def gaussian(size):
     return g
 
 
-gaussian_kernel = nn.Conv2d(17, 17, kernel_size=4 * 1 + 1,
-                            stride=1, padding=2, groups=17, bias=False)
+gaussian_kernel = nn.Conv2d(opt.nClasses, opt.nClasses, kernel_size=4 * 1 + 1,
+                            stride=1, padding=2, groups=opt.nClasses, bias=False)
 
 g = torch.from_numpy(gaussian(4 * 1 + 1)).clone()
 g = torch.unsqueeze(g, 1)
-g = g.repeat(17, 1, 1, 1)
+g = g.repeat(opt.nClasses, 1, 1, 1)
 gaussian_kernel.weight.data = g.float()
 gaussian_kernel.cuda()
 
@@ -88,7 +88,7 @@ def prediction(model):
         with torch.no_grad():
             try:
                 kp_preds = model(inp)
-                kp_preds = kp_preds.data[:, :17, :]
+                kp_preds = kp_preds.data[:, :opt.nClasses, :]
             except RuntimeError as e:
                 '''
                 Divide inputs into two batches
@@ -100,7 +100,7 @@ def prediction(model):
                 kp_preds1 = model(inp1)
                 kp_preds2 = model(inp2)
                 kp_preds = torch.cat((kp_preds1, kp_preds2), dim=0)
-                kp_preds = kp_preds.data[:, :17, :]
+                kp_preds = kp_preds.data[:, :opt.nClasses, :]
 
             # kp_preds = gaussian_kernel(F.relu(kp_preds))
 

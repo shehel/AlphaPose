@@ -29,7 +29,7 @@ class FastPose_SE(nn.Module):
         self.duc2 = DUC(256, 512, upscale_factor=2)
 
         self.conv_out = nn.Conv2d(
-            self.conv_dim, opt.nClasses, kernel_size=3, stride=1, padding=1)
+            self.conv_dim, opt.oClasses, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
         out = self.preact(x)

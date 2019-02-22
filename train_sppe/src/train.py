@@ -5,7 +5,7 @@
 
 import torch
 import torch.utils.data
-from utils.dataset import coco
+from utils.dataset import cocot as coco
 from opt import opt
 from tqdm import tqdm
 from models.FastPose import createModel
@@ -107,7 +107,7 @@ def valid(val_loader, m, criterion, optimizer, writer):
 
 
 def main():
-
+    n_gpu = torch.cuda.device_count();
     # Model Initialize
     m = createModel().cuda()
     if opt.loadModel:
@@ -127,6 +127,12 @@ def main():
             except FileNotFoundError:
                 os.mkdir("../exp/{}".format(opt.dataset))
                 os.mkdir("../exp/{}/{}".format(opt.dataset, opt.expID))
+    
+    if opt.nClasses != opt.oClasses:
+        m.conv_out = nn.Conv2d(
+            128, opt.oClasses, kernel_size=3, stride=1, padding=1)
+    
+    m = m.cuda()
 
     criterion = torch.nn.MSELoss().cuda()
 
@@ -158,7 +164,8 @@ def main():
         val_dataset, batch_size=opt.validBatch, shuffle=False, num_workers=opt.nThreads, pin_memory=True)
 
     # Model Transfer
-    m = torch.nn.DataParallel(m).cuda()
+    if n_gpu > 1:
+        m = torch.nn.DataParallel(m).cuda()
 
     # Start Training
     for i in range(opt.nEpochs):
@@ -178,11 +185,11 @@ def main():
         m_dev = m.module
         if i % opt.snapshot == 0:
             torch.save(
-                m_dev.state_dict(), '../exp/{}/{}/model_{}.pkl'.format(opt.dataset, opt.expID, opt.epoch))
+                m_dev.state_dict(), '../exp/{}/{}/model_{}.pth'.format(opt.dataset, opt.expID, opt.epoch))
             torch.save(
-                opt, '../exp/{}/{}/option.pkl'.format(opt.dataset, opt.expID, opt.epoch))
+                opt, '../exp/{}/{}/option.pth'.format(opt.dataset, opt.expID, opt.epoch))
             torch.save(
-                optimizer, '../exp/{}/{}/optimizer.pkl'.format(opt.dataset, opt.expID))
+                optimizer, '../exp/{}/{}/optimizer.pth'.format(opt.dataset, opt.expID))
 
         loss, acc = valid(val_loader, m, criterion, optimizer, writer)
 
