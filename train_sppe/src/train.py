@@ -5,6 +5,8 @@
 
 import torch
 import torch.utils.data
+import torch.nn as nn
+
 from utils.dataset import cocot as coco
 from opt import opt
 from tqdm import tqdm
@@ -17,7 +19,7 @@ from tensorboardX import SummaryWriter
 import os
 
 
-def train(train_loader, m, criterion, optimizer, writer):
+def train(train_loader, m, criterion, optimizer, writer, n_gpu):
     lossLogger = DataLogger()
     accLogger = DataLogger()
     m.train()
@@ -31,7 +33,8 @@ def train(train_loader, m, criterion, optimizer, writer):
         out = m(inps)
 
         loss = criterion(out.mul(setMask), labels)
-
+        if n_gpu > 1:
+            loss = loss.mean()
         acc = accuracy(out.data.mul(setMask), labels.data, train_loader.dataset)
 
         accLogger.update(acc[0], inps.size(0))
@@ -130,7 +133,7 @@ def main():
     
     if opt.nClasses != opt.oClasses:
         m.conv_out = nn.Conv2d(
-            128, opt.oClasses, kernel_size=3, stride=1, padding=1)
+            128, opt.nClasses, kernel_size=3, stride=1, padding=1)
     
     m = m.cuda()
 
@@ -172,7 +175,7 @@ def main():
         opt.epoch = i
 
         print('############# Starting Epoch {} #############'.format(opt.epoch))
-        loss, acc = train(train_loader, m, criterion, optimizer, writer)
+        loss, acc = train(train_loader, m, criterion, optimizer, writer, n_gpu)
 
         print('Train-{idx:d} epoch | loss:{loss:.8f} | acc:{acc:.4f}'.format(
             idx=opt.epoch,

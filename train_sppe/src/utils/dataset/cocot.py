@@ -37,7 +37,7 @@ class Mscoco(data.Dataset):
                         (14, 15), (16, 17), (18, 21), (19, 22), (20,23))
 
         # create train/val split
-        with h5py.File('../data/coco/annot_coco.h5', 'r') as annot:
+        with h5py.File('../data/coco/annot_coco_foot_train.h5', 'r') as annot:
             # train
             self.imgname_coco_train = annot['imgname'][:-500]
             self.bndbox_coco_train = annot['bndbox'][:-500]
