@@ -7,6 +7,8 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 
+from lr_finder import LRFinder
+
 from utils.dataset import cocot as coco
 from opt import opt
 from tqdm import tqdm
@@ -133,7 +135,8 @@ def main():
             except FileNotFoundError:
                 os.mkdir("../exp/{}".format(opt.dataset))
                 os.mkdir("../exp/{}/{}".format(opt.dataset, opt.expID))
-    
+    for param in m.parameters():
+        param.requires_grad = False
     if opt.nClasses != opt.oClasses:
         m.conv_out = nn.Conv2d(
             128, opt.nClasses, kernel_size=3, stride=1, padding=1)
@@ -143,7 +146,7 @@ def main():
     criterion = torch.nn.MSELoss().cuda()
 
     if opt.optMethod == 'rmsprop':
-        optimizer = torch.optim.RMSprop(m.parameters(),
+        optimizer = torch.optim.RMSprop(m.conv_out.parameters(),
                                         lr=opt.LR,
                                         momentum=opt.momentum,
                                         weight_decay=opt.weightDecay)
@@ -172,7 +175,10 @@ def main():
     # Model Transfer
     print("Training beginning on: ", n_gpu)
     m = torch.nn.DataParallel(m).cuda()
-
+    if opt.lr_find:
+        lr_finder = LRFinder(m, optimizer, criterion, device="cuda")
+        lr_finder.range_test(train_loader, end_lr=100, num_iter=100, step_mode="exp", diverge_th=5)
+        lr_finder.plot()
     # Start Training
     for i in range(opt.nEpochs):
         opt.epoch = i
