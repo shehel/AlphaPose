@@ -115,7 +115,7 @@ def valid(val_loader, m, criterion, optimizer, writer):
 def main():
     n_gpu = torch.cuda.device_count();
     # Model Initialize
-    m = createModel().cuda()
+    m = createModel()
     if opt.loadModel:
         print('Loading Model from {}'.format(opt.loadModel))
         m.load_state_dict(torch.load(opt.loadModel))
@@ -170,8 +170,8 @@ def main():
         val_dataset, batch_size=opt.validBatch, shuffle=False, num_workers=opt.nThreads, pin_memory=True)
 
     # Model Transfer
-    if n_gpu > 1:
-        m = torch.nn.DataParallel(m).cuda()
+    print("Training beginning on: ", n_gpu)
+    m = torch.nn.DataParallel(m).cuda()
 
     # Start Training
     for i in range(opt.nEpochs):
