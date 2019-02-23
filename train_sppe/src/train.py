@@ -6,7 +6,7 @@
 import torch
 import torch.utils.data
 import torch.nn as nn
-
+import OneCycle
 from lr_finder import LRFinder
 
 from utils.dataset import cocot as coco
@@ -23,8 +23,15 @@ from models.layers.SE_Resnet import SEResnet
 from tensorboardX import SummaryWriter
 import os
 
+def update_lr(optimizer, lr):
+    for g in optimizer.param_groups:
+        g['lr'] = lr
 
-def train(train_loader, m, criterion, optimizer, writer, n_gpu):
+def update_mom(optimizer, mom):
+    for g in optimizer.param_groups:
+        g['momentum'] = mom
+
+def train(train_loader, m, criterion, optimizer, writer, n_gpu, onecycle=None, use_cycle=True):
     lossLogger = DataLogger()
     accLogger = DataLogger()
     m.train()
@@ -35,6 +42,12 @@ def train(train_loader, m, criterion, optimizer, writer, n_gpu):
         inps = inps.cuda().requires_grad_()
         labels = labels.cuda()
         setMask = setMask.cuda()
+
+        if use_cycle:    
+            lr, mom = onecycle.calc()
+            update_lr(optimizer, lr)
+            update_mom(optimizer, mom)
+
         out = m(inps)
 
         loss = criterion(out.mul(setMask), labels)
@@ -116,6 +129,8 @@ def valid(val_loader, m, criterion, optimizer, writer):
 
 def main():
     n_gpu = torch.cuda.device_count();
+    use_cycle = False
+    onecycle=None
     # Model Initialize
     m = createModel()
     if opt.loadModel:
@@ -135,8 +150,8 @@ def main():
             except FileNotFoundError:
                 os.mkdir("../exp/{}".format(opt.dataset))
                 os.mkdir("../exp/{}/{}".format(opt.dataset, opt.expID))
-    for param in m.parameters():
-        param.requires_grad = False
+    #for param in m.parameters():
+    #    param.requires_grad = False
     if opt.nClasses != opt.oClasses:
         m.conv_out = nn.Conv2d(
             128, opt.nClasses, kernel_size=3, stride=1, padding=1)
@@ -144,6 +159,11 @@ def main():
     m = m.cuda()
 
     criterion = torch.nn.MSELoss().cuda()
+    
+    # Prepare Dataset
+    if opt.dataset == 'coco':
+        train_dataset = coco.Mscoco(train=True)
+        val_dataset = coco.Mscoco(train=False)
 
     if opt.optMethod == 'rmsprop':
         optimizer = torch.optim.RMSprop(m.conv_out.parameters(),
@@ -152,19 +172,21 @@ def main():
                                         weight_decay=opt.weightDecay)
     elif opt.optMethod == 'adam':
         optimizer = torch.optim.Adam(
-            m.parameters(),
+            m.conv_out.parameters(),
             lr=opt.LR
         )
+    elif opt.optMethod == 'sgd':
+        optimizer = torch.optim.SGD(m.conv_out.parameters(), lr=opt.LR, momentum=opt.momentum, weight_decay=opt.weightDecay)
     else:
         raise Exception
-
+    
+    if opt.one_cycle:
+        use_cycle=True
+        onecycle = OneCycle.OneCycle(int(len(train_dataset) * opt.nEpochs / opt.trainBatch), opt.LR, prcnt=(opt.nEpochs - 82) * 100/opt.nEpochs, momentum_vals=(0.95, 0.8), div = 10)
     writer = SummaryWriter(
         '.tensorboard/{}/{}'.format(opt.dataset, opt.expID))
 
-    # Prepare Dataset
-    if opt.dataset == 'coco':
-        train_dataset = coco.Mscoco(train=True)
-        val_dataset = coco.Mscoco(train=False)
+    
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=opt.trainBatch, shuffle=True, num_workers=opt.nThreads, pin_memory=True)
@@ -184,7 +206,7 @@ def main():
         opt.epoch = i
 
         print('############# Starting Epoch {} #############'.format(opt.epoch))
-        loss, acc = train(train_loader, m, criterion, optimizer, writer, n_gpu)
+        loss, acc = train(train_loader, m, criterion, optimizer, writer, n_gpu, onecycle, use_cycle=use_cycle)
 
         print('Train-{idx:d} epoch | loss:{loss:.8f} | acc:{acc:.4f}'.format(
             idx=opt.epoch,

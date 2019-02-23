@@ -32,6 +32,8 @@ parser.add_argument('--oClasses', default=23, type=int,
 "----------------------------- Hyperparameter options -----------------------------"
 parser.add_argument('--LR', default=1e-3, type=float,
                     help='Learning rate')
+parser.add_argument('--one_cycle', default=False, type=bool,
+                    help='One Cycle learning rate')
 parser.add_argument('--momentum', default=0, type=float,
                     help='Momentum')
 parser.add_argument('--weightDecay', default=0, type=float,
